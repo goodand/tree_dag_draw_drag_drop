@@ -73,3 +73,9 @@ xmind-sdk-js(492★, write-only, Node 지향), xmind-generator(53★, write-only
 - **선택지 A (추천): mind-elixir-core subtree + React Flow 단일 캔버스는 포기하고 2-캔버스 구조** — 트리 모드는 mind-elixir(검증된 XMind UX·TS), "Freeze"는 mind-elixir 데이터+좌표를 React Flow 노드로 변환. .xmind/.drawio I/O는 자체 구현.
 - **선택지 B: simple-mind-map subtree** — xmind I/O까지 공짜지만 JS·Vue 색채, 번들 큼.
 - **선택지 C: 전부 자체 구현(React Flow 단일 캔버스)** — 모델이 가장 깔끔하지만 UX 완성도 도달까지 시간 2~3배.
+
+## 5. 결정 및 스모크 테스트 결과 (2026-10-23)
+- **결정: simple-mind-map만 `git subtree`로 도입** (`vendor/simple-mind-map`, upstream wanglin2/mind-map `simple-mind-map/` 폴더를 split, squash). 선택 기준은 검증 비용: 트리 편집 UX·레이아웃·.xmind I/O는 상류가 검증한 코드를 그대로 쓰고, 우리가 검증할 코드는 draw.io 변환기와 Freeze 계층으로 한정한다. mind-elixir 코드는 쓰지 않고 Playwright 시나리오만 E2E 명세로 참고한다.
+- 업데이트: `git subtree pull --prefix=vendor/simple-mind-map <clone> smm-split --squash` (split 브랜치는 전체 히스토리 clone에서 `git subtree split --prefix=simple-mind-map` 로 생성).
+- Vite 스모크 테스트(localhost:5174): Tab=자식, 타이핑=편집, Enter=확정, Enter=형제 생성 모두 동작. `mindMap.renderer.root`에서 노드별 left/top/width/height를 바로 읽을 수 있음 → Freeze·draw.io 변환의 입력.
+- XMind와 다른 점(옵션으로 조정): 기본 텍스트가 중국어(`defaultInsertSecondLevelNodeText` 등으로 교체), Enter로 만든 형제가 즉시 편집 모드로 진입(XMind는 선택만). 후자는 상류 동작 유지.
