@@ -10,6 +10,9 @@ import { collectDiagram } from './collect/fromMindMap'
 import { toDrawioXml } from './export/drawio'
 import { freeze, unfreeze } from './freeze'
 import { applyRelationships, readFirstSheet, withRelationships, type SmmTree } from './xmindLinks'
+import { sharedLinkLabel, unifiedLinkTheme } from './linkStyle'
+import { layoutDag, fromDiagram } from './dag/layout.js'
+import { toSvg, toDrawio as dagToDrawio } from './dag/render.js'
 
 MindMap.usePlugin(Drag)
   .usePlugin(Select)
@@ -37,6 +40,8 @@ const mindMap = new MindMap({
   defaultInsertBelowSecondLevelNodeText: 'Subtopic',
   defaultGeneralizationText: 'Summary',
   enableAutoEnterTextEditWhenKeydown: true,
+  // cross links look exactly like tree lines (same colour and width, solid)
+  themeConfig: unifiedLinkTheme({ lineColor: '#549688', lineWidth: 1 }),
   data: {
     data: { text: 'Central Topic' },
     children: [
@@ -118,5 +123,43 @@ freezeButton.addEventListener('click', () => {
 })
 toolbar.appendChild(freezeButton)
 
+// One legend instead of the same label on every cross link (labels that differ stay on their lines).
+const legend = document.getElementById('legend') as HTMLElement
+const updateLegend = (): void => {
+  const label = sharedLinkLabel(mindMap.getData() as SmmTree)
+  document.body.classList.toggle('shared-link-label', label !== null)
+  legend.hidden = label === null
+  if (label !== null) (legend.querySelector('.legend-text') as HTMLElement).textContent = `모든 선 = ${label}`
+}
+mindMap.on('node_tree_render_end', updateLegend)
+updateLegend()
+
+// DAG view: the same relations laid out left to right as one directed graph (tools/dag-layout rules)
+const dagEl = document.getElementById('dag') as HTMLElement
+let dagResult: any = null
+const DAG_ELK = { 'elk.layered.thoroughness': '100', 'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES' }
+const dagButton = document.createElement('button')
+dagButton.textContent = 'DAG view'
+dagButton.addEventListener('mousedown', e => e.preventDefault())
+dagButton.addEventListener('click', async () => {
+  const on = !document.body.classList.contains('dag')
+  document.body.classList.toggle('dag', on)
+  dagButton.textContent = on ? 'Tree view' : 'DAG view'
+  if (!on) return
+  dagEl.innerHTML = '<p class="dag-wait">배치 계산 중…</p>'
+  dagResult = await layoutDag(fromDiagram(collectDiagram(mindMap)), { elkOptions: DAG_ELK })
+  const m = dagResult.metrics
+  dagEl.innerHTML = toSvg(dagResult) +
+    `<p class="dag-metrics">열 ${m.columns} · 교차 ${m.crossings} · 꺾임 ${m.bends} · 상자를 지나는 선 ${m.boxHits.length}</p>`
+  // natural size (12px labels) and scroll, instead of shrinking the whole graph to the window width
+  const svg = dagEl.querySelector('svg') as SVGSVGElement
+  svg.style.width = `${svg.viewBox.baseVal.width}px`
+})
+toolbar.appendChild(dagButton)
+button('Export DAG .drawio', async () => {
+  const res = dagResult ?? await layoutDag(fromDiagram(collectDiagram(mindMap)), { elkOptions: DAG_ELK })
+  download('map-dag.drawio', dagToDrawio(res, { name: 'dag' }), 'application/xml')
+})
+
 // Exposed for manual and E2E verification.
-Object.assign(window as any, { mindMap, collectDiagram, toDrawioXml, freeze, unfreeze, xmind, exportXmind, importXmind })
+Object.assign(window as any, { layoutDag, fromDiagram, sharedLinkLabel, mindMap, collectDiagram, toDrawioXml, freeze, unfreeze, xmind, exportXmind, importXmind })

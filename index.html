@@ -9,12 +9,23 @@
       body { position: relative; }
       #toolbar { height: 40px; display: flex; gap: 8px; align-items: center; padding: 0 12px; border-bottom: 1px solid #ddd; }
       #map { position: absolute; top: 41px; left: 0; right: 0; bottom: 0; }
+      /* every cross link shares one label: show it once in the legend, not on each line */
+      body.shared-link-label .smm-associative-line-container text { display: none; }
+      #legend { position: absolute; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+        background: #fff; border: 1px solid #549688; border-radius: 8px; font-size: 13px; color: #222; z-index: 2; }
+      #legend[hidden] { display: none; }
+      #dag { position: absolute; top: 41px; left: 0; right: 0; bottom: 0; overflow: auto; background: #fafafa; display: none; z-index: 1; }
+      body.dag #dag { display: block; }
+      #dag svg { height: auto; display: block; }
+      .dag-metrics, .dag-wait { position: sticky; left: 0; margin: 8px 16px; font-size: 13px; color: #555; }
       body.frozen #map { background: repeating-linear-gradient(0deg, #f3f3f3 0 1px, transparent 1px 20px), repeating-linear-gradient(90deg, #f3f3f3 0 1px, transparent 1px 20px); }
     </style>
   </head>
   <body>
     <div id="toolbar"></div>
     <div id="map"></div>
+    <div id="dag"></div>
+    <div id="legend" hidden><svg width="36" height="8"><line x1="0" y1="4" x2="36" y2="4" stroke="#549688" stroke-width="1.5" /></svg><span class="legend-text"></span></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
