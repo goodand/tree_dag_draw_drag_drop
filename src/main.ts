@@ -10,6 +10,9 @@ import { collectDiagram } from './collect/fromMindMap'
 import { toDrawioXml } from './export/drawio'
 import { freeze, unfreeze } from './freeze'
 import { applyRelationships, readFirstSheet, withRelationships, type SmmTree } from './xmindLinks'
+import { sharedLinkLabel, unifiedLinkTheme } from './linkStyle'
+import { layoutDag, fromDiagram } from './dag/layout.js'
+import { toSvg, toDrawio as dagToDrawio } from './dag/render.js'
 
 MindMap.usePlugin(Drag)
   .usePlugin(Select)
@@ -37,6 +40,8 @@ const mindMap = new MindMap({
   defaultInsertBelowSecondLevelNodeText: 'Subtopic',
   defaultGeneralizationText: 'Summary',
   enableAutoEnterTextEditWhenKeydown: true,
+  // cross links look exactly like tree lines (same colour and width, solid)
+  themeConfig: unifiedLinkTheme({ lineColor: '#549688', lineWidth: 1 }),
   data: {
     data: { text: 'Central Topic' },
     children: [
@@ -118,5 +123,60 @@ freezeButton.addEventListener('click', () => {
 })
 toolbar.appendChild(freezeButton)
 
+// One legend instead of the same label on every cross link (labels that differ stay on their lines).
+const legend = document.getElementById('legend') as HTMLElement
+const updateLegend = (): void => {
+  const label = sharedLinkLabel(mindMap.getData() as SmmTree)
+  document.body.classList.toggle('shared-link-label', label !== null)
+  legend.hidden = label === null
+  if (label !== null) (legend.querySelector('.legend-text') as HTMLElement).textContent = `모든 선 = ${label}`
+}
+mindMap.on('node_tree_render_end', updateLegend)
+updateLegend()
+
+// DAG view: the same relations laid out left to right as one directed graph (tools/dag-layout rules).
+// The view switch and zoom sit small in the footer next to the legend, not in the top toolbar: switching views
+// helps reading the structure and should not look like a level above it (DDS 11.2).
+const dagEl = document.getElementById('dag') as HTMLElement
+const viewSwitch = document.getElementById('view-switch') as HTMLElement
+const zoomSwitch = document.getElementById('zoom-switch') as HTMLElement
+let dagResult: any = null
+const DAG_ELK = { 'elk.layered.thoroughness': '100', 'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES' }
+const press = (group: HTMLElement, value: string): void =>
+  group.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.value === value)))
+
+async function showView(view: 'tree' | 'dag'): Promise<void> {
+  document.body.classList.toggle('dag', view === 'dag')
+  press(viewSwitch, view)
+  zoomSwitch.hidden = view !== 'dag'
+  if (view === 'tree') return
+  dagEl.innerHTML = '<p class="dag-wait">배치 계산 중…</p>'
+  dagResult = await layoutDag(fromDiagram(collectDiagram(mindMap)), { elkOptions: DAG_ELK })
+  const m = dagResult.metrics
+  dagEl.innerHTML = toSvg(dagResult)
+  ;(document.getElementById('dag-metrics') as HTMLElement).textContent =
+    `열 ${m.columns} · 교차 ${m.crossings} · 꺾임 ${m.bends} · 상자를 지나는 선 ${m.boxHits.length}`
+  setZoom('actual')
+}
+// natural size keeps 12.5px labels (scroll to see the rest); fit shows everything at once
+function setZoom(zoom: 'actual' | 'fit'): void {
+  const svg = dagEl.querySelector('svg') as SVGSVGElement | null
+  if (!svg) return
+  press(zoomSwitch, zoom)
+  svg.style.width = zoom === 'fit' ? '100%' : `${svg.viewBox.baseVal.width}px`
+}
+viewSwitch.addEventListener('click', e => {
+  const v = (e.target as HTMLElement).closest('button')?.dataset.value
+  if (v === 'tree' || v === 'dag') void showView(v)
+})
+zoomSwitch.addEventListener('click', e => {
+  const v = (e.target as HTMLElement).closest('button')?.dataset.value
+  if (v === 'actual' || v === 'fit') setZoom(v)
+})
+button('Export DAG .drawio', async () => {
+  const res = dagResult ?? await layoutDag(fromDiagram(collectDiagram(mindMap)), { elkOptions: DAG_ELK })
+  download('map-dag.drawio', dagToDrawio(res, { name: 'dag' }), 'application/xml')
+})
+
 // Exposed for manual and E2E verification.
-Object.assign(window as any, { mindMap, collectDiagram, toDrawioXml, freeze, unfreeze, xmind, exportXmind, importXmind })
+Object.assign(window as any, { layoutDag, fromDiagram, sharedLinkLabel, mindMap, collectDiagram, toDrawioXml, freeze, unfreeze, xmind, exportXmind, importXmind })
