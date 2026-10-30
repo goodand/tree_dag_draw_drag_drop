@@ -1,16 +1,24 @@
 // Cross links (associative lines) are the same kind of relation as tree edges, so they are drawn the same way:
-// tree colour and width, solid. A per-line label is shown only when it says something the others do not;
-// when every cross link carries the same label it moves to a single legend instead.
+// tree colour and width, solid, and every line carries an arrowhead at the purpose end (DDS goal_means: means ->
+// purpose, arrowhead = the most identifiable edge feature). Tree lines run parent (purpose) -> child (means), so
+// their marker sits at the start; cross links already end at the purpose.
+// A per-line label is shown only when it says something the others do not; when every cross link carries the
+// same label it moves to a single legend instead.
 import type { SmmTree } from './xmindLinks'
 
 export interface TreeLineTheme { lineColor: string; lineWidth: number }
 
-/** themeConfig entries that make associative lines look like tree lines. */
-export function unifiedLinkTheme(tree: TreeLineTheme): Record<string, string | number> {
+/** themeConfig entries that make associative lines look like tree lines, with arrowheads on the purpose end. */
+export function unifiedLinkTheme(tree: TreeLineTheme): Record<string, unknown> {
   return {
     associativeLineColor: tree.lineColor,
     associativeLineWidth: tree.lineWidth,
     associativeLineDasharray: 'none',
+    showLineMarker: true,
+    // the marker side is read per level (the theme's root/second/node blocks override a top-level value)
+    root: { lineMarkerDir: 'start' },
+    second: { lineMarkerDir: 'start' },
+    node: { lineMarkerDir: 'start' },
   }
 }
 

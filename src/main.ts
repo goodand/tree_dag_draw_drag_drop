@@ -134,28 +134,45 @@ const updateLegend = (): void => {
 mindMap.on('node_tree_render_end', updateLegend)
 updateLegend()
 
-// DAG view: the same relations laid out left to right as one directed graph (tools/dag-layout rules)
+// DAG view: the same relations laid out left to right as one directed graph (tools/dag-layout rules).
+// The view switch and zoom sit small in the footer next to the legend, not in the top toolbar: switching views
+// helps reading the structure and should not look like a level above it (DDS 11.2).
 const dagEl = document.getElementById('dag') as HTMLElement
+const viewSwitch = document.getElementById('view-switch') as HTMLElement
+const zoomSwitch = document.getElementById('zoom-switch') as HTMLElement
 let dagResult: any = null
 const DAG_ELK = { 'elk.layered.thoroughness': '100', 'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES' }
-const dagButton = document.createElement('button')
-dagButton.textContent = 'DAG view'
-dagButton.addEventListener('mousedown', e => e.preventDefault())
-dagButton.addEventListener('click', async () => {
-  const on = !document.body.classList.contains('dag')
-  document.body.classList.toggle('dag', on)
-  dagButton.textContent = on ? 'Tree view' : 'DAG view'
-  if (!on) return
+const press = (group: HTMLElement, value: string): void =>
+  group.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.value === value)))
+
+async function showView(view: 'tree' | 'dag'): Promise<void> {
+  document.body.classList.toggle('dag', view === 'dag')
+  press(viewSwitch, view)
+  zoomSwitch.hidden = view !== 'dag'
+  if (view === 'tree') return
   dagEl.innerHTML = '<p class="dag-wait">배치 계산 중…</p>'
   dagResult = await layoutDag(fromDiagram(collectDiagram(mindMap)), { elkOptions: DAG_ELK })
   const m = dagResult.metrics
-  dagEl.innerHTML = toSvg(dagResult) +
-    `<p class="dag-metrics">열 ${m.columns} · 교차 ${m.crossings} · 꺾임 ${m.bends} · 상자를 지나는 선 ${m.boxHits.length}</p>`
-  // natural size (12px labels) and scroll, instead of shrinking the whole graph to the window width
-  const svg = dagEl.querySelector('svg') as SVGSVGElement
-  svg.style.width = `${svg.viewBox.baseVal.width}px`
+  dagEl.innerHTML = toSvg(dagResult)
+  ;(document.getElementById('dag-metrics') as HTMLElement).textContent =
+    `열 ${m.columns} · 교차 ${m.crossings} · 꺾임 ${m.bends} · 상자를 지나는 선 ${m.boxHits.length}`
+  setZoom('actual')
+}
+// natural size keeps 12.5px labels (scroll to see the rest); fit shows everything at once
+function setZoom(zoom: 'actual' | 'fit'): void {
+  const svg = dagEl.querySelector('svg') as SVGSVGElement | null
+  if (!svg) return
+  press(zoomSwitch, zoom)
+  svg.style.width = zoom === 'fit' ? '100%' : `${svg.viewBox.baseVal.width}px`
+}
+viewSwitch.addEventListener('click', e => {
+  const v = (e.target as HTMLElement).closest('button')?.dataset.value
+  if (v === 'tree' || v === 'dag') void showView(v)
 })
-toolbar.appendChild(dagButton)
+zoomSwitch.addEventListener('click', e => {
+  const v = (e.target as HTMLElement).closest('button')?.dataset.value
+  if (v === 'actual' || v === 'fit') setZoom(v)
+})
 button('Export DAG .drawio', async () => {
   const res = dagResult ?? await layoutDag(fromDiagram(collectDiagram(mindMap)), { elkOptions: DAG_ELK })
   download('map-dag.drawio', dagToDrawio(res, { name: 'dag' }), 'application/xml')

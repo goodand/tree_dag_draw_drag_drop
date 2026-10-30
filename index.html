@@ -5,19 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tree DAG Diagram</title>
     <style>
-      html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+      :root { --ink: #1f2326; --sub: #5c6670; --line: #549688; --paper: #fafafa; --rule: #dde1e3; }
+      html, body { margin: 0; height: 100%; font-family: 'Apple SD Gothic Neo', system-ui, sans-serif; color: var(--ink); background: var(--paper); }
       body { position: relative; }
-      #toolbar { height: 40px; display: flex; gap: 8px; align-items: center; padding: 0 12px; border-bottom: 1px solid #ddd; }
-      #map { position: absolute; top: 41px; left: 0; right: 0; bottom: 0; }
-      /* every cross link shares one label: show it once in the legend, not on each line */
-      body.shared-link-label .smm-associative-line-container text { display: none; }
-      #legend { position: absolute; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 8px; padding: 6px 12px;
-        background: #fff; border: 1px solid #549688; border-radius: 8px; font-size: 13px; color: #222; z-index: 2; }
-      #legend[hidden] { display: none; }
-      #dag { position: absolute; top: 41px; left: 0; right: 0; bottom: 0; overflow: auto; background: #fafafa; display: none; z-index: 1; }
+      /* file actions: one quiet button style (benchmarks: draw.io, yFiles keep the canvas the loudest thing) */
+      #toolbar { height: 40px; display: flex; gap: 6px; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--rule); background: #fff; }
+      #toolbar button, .seg button { font: inherit; font-size: 13px; color: var(--ink); background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+      #toolbar button:hover, .seg button:hover { border-color: var(--line); }
+      #map { position: absolute; top: 41px; left: 0; right: 0; bottom: 40px; }
+      #dag { position: absolute; top: 41px; left: 0; right: 0; bottom: 40px; overflow: auto; background: var(--paper); display: none; z-index: 1; }
       body.dag #dag { display: block; }
       #dag svg { height: auto; display: block; }
-      .dag-metrics, .dag-wait { position: sticky; left: 0; margin: 8px 16px; font-size: 13px; color: #555; }
+      .dag-wait { margin: 16px; font-size: 13px; color: var(--sub); }
+      /* footer: view switch, zoom, metrics, legend — small, under the drawing (DDS 11.2) */
+      #footer { position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center; gap: 12px; padding: 0 12px;
+        border-top: 1px solid var(--rule); background: #fff; font-size: 13px; z-index: 2; }
+      .seg { display: inline-flex; }
+      .seg button { border-radius: 0; margin-left: -1px; }
+      .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+      .seg button:last-child { border-radius: 0 6px 6px 0; }
+      .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+      .seg[hidden] { display: none; }
+      #dag-metrics { color: var(--sub); }
+      body:not(.dag) #dag-metrics { display: none; }
+      #legend { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+      #legend[hidden] { display: none; }
+      /* every cross link shares one label: show it once in the legend, not on each line */
+      body.shared-link-label .smm-associative-line-container text { display: none; }
       body.frozen #map { background: repeating-linear-gradient(0deg, #f3f3f3 0 1px, transparent 1px 20px), repeating-linear-gradient(90deg, #f3f3f3 0 1px, transparent 1px 20px); }
     </style>
   </head>
@@ -25,7 +39,12 @@
     <div id="toolbar"></div>
     <div id="map"></div>
     <div id="dag"></div>
-    <div id="legend" hidden><svg width="36" height="8"><line x1="0" y1="4" x2="36" y2="4" stroke="#549688" stroke-width="1.5" /></svg><span class="legend-text"></span></div>
+    <div id="footer">
+      <span class="seg" id="view-switch" role="group" aria-label="보기"><button data-value="tree" aria-pressed="true">트리</button><button data-value="dag" aria-pressed="false">DAG</button></span>
+      <span class="seg" id="zoom-switch" role="group" aria-label="크기" hidden><button data-value="actual" aria-pressed="true">실제 크기</button><button data-value="fit" aria-pressed="false">화면에 맞춤</button></span>
+      <span id="dag-metrics"></span>
+      <span id="legend" hidden><svg width="40" height="10" aria-hidden="true"><path d="M1,5 L7,1.5 L7,8.5 z" fill="#549688"/><line x1="7" y1="5" x2="40" y2="5" stroke="#549688" stroke-width="1.5"/></svg><span class="legend-text"></span></span>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

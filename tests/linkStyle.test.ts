@@ -6,9 +6,11 @@ const node = (uid: string, data: Partial<SmmTree['data']> = {}, children: SmmTre
   ({ data: { uid, text: uid, ...data }, children })
 
 describe('unifiedLinkTheme', () => {
-  it('copies the tree line colour and width and turns dashes off', () => {
+  it('copies the tree line colour and width, turns dashes off and puts arrowheads on the purpose end', () => {
     expect(unifiedLinkTheme({ lineColor: '#549688', lineWidth: 1 })).toEqual({
       associativeLineColor: '#549688', associativeLineWidth: 1, associativeLineDasharray: 'none',
+      showLineMarker: true,
+      root: { lineMarkerDir: 'start' }, second: { lineMarkerDir: 'start' }, node: { lineMarkerDir: 'start' },
     })
   })
 })

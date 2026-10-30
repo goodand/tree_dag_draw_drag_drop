@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { layoutDag, fromDiagram, ends } from '../src/dag/layout.js'
-import { toDrawio } from '../src/dag/render.js'
+import { toDrawio, toSvg, bounds } from '../src/dag/render.js'
 import type { Diagram } from '../src/model/diagram'
 
 const box = (id: string, parentId?: string) => ({ id, text: id, x: 0, y: 0, w: 60, h: 20, parentId })
@@ -34,5 +34,18 @@ describe('DAG view layout', () => {
     expect(xml.match(/vertex="1"/g)).toHaveLength(7)
     expect(xml.match(/edge="1"/g)).toHaveLength(8)
     expect(xml).toContain('id="e:root-&gt;d"')
+  })
+
+  it('draws DDS goal_means: arrowhead on the purpose end, no meaning in fill, equal 24px margin', async () => {
+    const res = await layoutDag(fromDiagram(diagram))
+    const svg = toSvg(res)
+    expect(svg.match(/<polyline /g)).toHaveLength(8)
+    expect(svg.match(/marker-start="url\(#purpose\)"/g)).toHaveLength(8)
+    expect(svg).not.toMatch(/<rect x="\d[^>]*fill="(?!#fafafa)/)          // every box is unfilled (paper colour)
+    const b = bounds(res)
+    const minX = Math.min(...res.nodes.map((n: any) => n.x), ...res.routes.flatMap((r: any) => r.points.map((q: any) => q.x)))
+    expect(minX - b.x).toBe(24)
+    const xml = toDrawio(res)
+    expect(xml.match(/startArrow=block;startFill=1;endArrow=none/g)).toHaveLength(8)
   })
 })
